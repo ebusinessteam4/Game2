@@ -49,7 +49,7 @@ export async function analyzeFlow(utterances: Utterance[], analyzer: string, tar
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `다음은 '${analyzer}'와 '${target}'의 대화 타임라인이야.
-1. '${target}'의 페르소나(성향, 특징, 말투 등)를 분석해줘.
+1. '${target}'의 페르소나(성향, 특징, 말투 등)를 분석해줘. 전반적인 요약과 함께, 이 사람의 주요 성향을 3~4가지 척도(예: 감정표현, 논리성, 공격성, 공감능력 등)로 나누어 0~100 사이의 수치로 평가해줘.
 2. '${analyzer}'와 '${target}' 간의 관계와 현재 상황을 300자 이내로 추측해서 요약해줘.
 
 대화 타임라인:
@@ -59,7 +59,22 @@ ${conversation}`,
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          personaAnalysis: { type: Type.STRING },
+          personaAnalysis: {
+            type: Type.OBJECT,
+            properties: {
+              summary: { type: Type.STRING },
+              traits: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    value: { type: Type.NUMBER }
+                  }
+                }
+              }
+            }
+          },
           relationship: { type: Type.STRING }
         },
         required: ["personaAnalysis", "relationship"]
@@ -99,7 +114,7 @@ ${conversation}`,
 export async function chatSimulationGenerate(
   message: string,
   history: {role: 'user'|'model', text: string}[],
-  persona: string,
+  persona: any,
   relationship: string,
   analyzer: string,
   target: string
@@ -118,7 +133,7 @@ export async function chatSimulationGenerate(
     model: "gemini-3-flash-preview",
     contents: contents as any,
     config: {
-      systemInstruction: `당신은 '${target}'입니다. 당신의 페르소나는 다음과 같습니다:\n${persona}\n\n대화 상대방은 '${analyzer}'이며, 두 사람의 관계/상황은 다음과 같습니다:\n${relationship}\n\n반드시 '${target}'의 입장에서, 주어진 페르소나와 말투를 유지하며 대답하세요.`
+      systemInstruction: `당신은 '${target}'입니다. 당신의 페르소나는 다음과 같습니다:\n${JSON.stringify(persona)}\n\n대화 상대방은 '${analyzer}'이며, 두 사람의 관계/상황은 다음과 같습니다:\n${relationship}\n\n반드시 '${target}'의 입장에서, 주어진 페르소나와 말투를 유지하며 대답하세요.\n중요: 답변은 실제 메신저 채팅처럼 짧고 간결하게, 가능한 한 문단 이내로 작성하세요.`
     }
   });
 

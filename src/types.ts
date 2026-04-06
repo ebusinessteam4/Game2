@@ -16,7 +16,10 @@ export interface AppState {
   speakers: string[];
   analyzer: string;
   target: string;
-  personaAnalysis: string;
+  personaAnalysis: {
+    summary: string;
+    traits: { name: string; value: number }[];
+  } | null;
   relationship: string;
   appliedTopic: string;
   appliedResult: {
