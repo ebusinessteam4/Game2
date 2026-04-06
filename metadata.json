@@ -1,0 +1,5 @@
+{
+  "name": "말 조각 수집가",
+  "description": "대화를 조각내어 분석하고, 상대방의 페르소나를 파악하여 시뮬레이션 채팅을 진행하는 앱",
+  "requestFramePermissions": []
+}
