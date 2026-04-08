@@ -11,6 +11,8 @@ export interface Utterance {
 
 export interface AppState {
   step: number;
+  apiProvider: 'gemini' | 'openai' | 'groq';
+  customApiKey: string;
   inputText: string;
   utterances: Utterance[];
   speakers: string[];

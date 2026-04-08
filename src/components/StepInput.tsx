@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, ChangeEvent } from 'react';
 import { AppState } from '../types';
 import { parseConversation } from '../services/ai';
 import { FileText, X, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -8,14 +8,14 @@ export default function StepInput({ state, updateState, onNext, onPrev }: any) {
   const [fileName, setFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleTextChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value;
     if (text.length <= 5000) {
       updateState({ inputText: text });
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
@@ -37,21 +37,27 @@ export default function StepInput({ state, updateState, onNext, onPrev }: any) {
     if (!state.inputText.trim()) return;
     setLoading(true);
     try {
-      const result = await parseConversation(state.inputText);
+      const result = await parseConversation(state.inputText, state.apiProvider, state.customApiKey);
       const utterances = result.utterances.map((u: any, i: number) => ({
         id: `u-${i}`,
         ...u
       }));
+      
+      const derivedSpeakers = Array.from(new Set(utterances.map((u: any) => u.speaker))) as string[];
+      const finalSpeakers = (result.speakers && result.speakers.length > 0) ? result.speakers : derivedSpeakers;
+      const finalAnalyzer = result.analyzer || (finalSpeakers.length > 0 ? finalSpeakers[0] : '');
+      const finalTarget = result.target || (finalSpeakers.length > 1 ? finalSpeakers[1] : (finalSpeakers.length > 0 ? finalSpeakers[0] : ''));
+
       updateState({
         utterances,
-        speakers: result.speakers || [],
-        analyzer: result.analyzer || '',
-        target: result.target || ''
+        speakers: finalSpeakers,
+        analyzer: finalAnalyzer,
+        target: finalTarget
       });
       onNext();
     } catch (error) {
       console.error(error);
-      alert("분석 중 오류가 발생했습니다.");
+      alert("분석 중 오류가 발생했습니다: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setLoading(false);
     }
@@ -60,20 +66,20 @@ export default function StepInput({ state, updateState, onNext, onPrev }: any) {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">말 조각 수집</h2>
+        <h2 className="text-2xl font-serif text-gray-100">말 조각 수집</h2>
         <span className="text-sm text-gray-500">{state.inputText.length} / 5,000 자</span>
       </div>
       
-      <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all">
+      <div className="bg-[#13131a] p-1 rounded-xl shadow-lg border border-violet-900/30 focus-within:border-violet-500 focus-within:ring-1 focus-within:ring-violet-500 transition-all">
         <textarea
-          className="w-full h-64 p-4 outline-none resize-none bg-transparent"
+          className="w-full h-64 p-4 outline-none resize-none bg-transparent text-gray-200 placeholder-gray-600"
           placeholder="대화 내용을 직접 입력하거나 텍스트 파일을 업로드하세요..."
           value={state.inputText}
           onChange={handleTextChange}
         />
       </div>
 
-      <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
+      <div className="flex items-center justify-between bg-[#13131a] p-4 rounded-lg border border-violet-900/30 shadow-lg">
         <div className="flex items-center gap-4">
           <input 
             type="file" 
@@ -84,28 +90,28 @@ export default function StepInput({ state, updateState, onNext, onPrev }: any) {
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700 text-sm font-medium text-gray-300 transition-colors"
           >
-            <FileText size={16} />
+            <FileText size={16} className="text-amber-400" />
             .txt 파일 업로드
           </button>
           {fileName && (
-            <div className="flex items-center gap-2 text-sm text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-md">
+            <div className="flex items-center gap-2 text-sm text-violet-300 bg-violet-900/20 px-3 py-1.5 rounded-md border border-violet-500/20">
               <span className="truncate max-w-[200px]">{fileName}</span>
-              <button onClick={clearFile} className="hover:text-indigo-800"><X size={14} /></button>
+              <button onClick={clearFile} className="hover:text-violet-200"><X size={14} /></button>
             </div>
           )}
         </div>
       </div>
 
       <div className="flex justify-between pt-6">
-        <button onClick={onPrev} className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+        <button onClick={onPrev} className="flex items-center gap-2 px-6 py-3 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg transition-colors">
           <ArrowLeft size={20} /> 이전
         </button>
         <button 
           onClick={handleAnalyze}
           disabled={!state.inputText.trim() || loading}
-          className="flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
+          className="flex items-center gap-2 px-8 py-3 bg-violet-600 text-white rounded-lg hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-[0_0_15px_rgba(139,92,246,0.3)]"
         >
           {loading ? <Loader2 className="animate-spin" size={20} /> : '말 조각으로 분해하기'}
           {!loading && <ArrowRight size={20} />}
